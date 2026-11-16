@@ -1,0 +1,480 @@
+// AeroSettle — Global Aviation Payment & Settlement Platform
+// Relational Database Schema (PostgreSQL + Prisma ORM)
+// Monetary values use precise Decimal(20, 6) / Decimal(24, 8) representations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AviationCategory {
+  COMMERCIAL_AIRLINE
+  PRIVATE_JET_OPERATOR
+  AIRCRAFT_LEASING
+  MRO_FACILITY
+  FUEL_SUPPLIER
+  PARTS_DISTRIBUTOR
+  AIRPORT_AUTHORITY
+  GROUND_HANDLING
+}
+
+enum UserRole {
+  ADMINISTRATOR
+  FINANCE_MANAGER
+  PAYMENT_APPROVER
+  FINANCE_OPERATOR
+  READ_ONLY_AUDITOR
+}
+
+enum VerificationStatus {
+  VERIFIED
+  PENDING_KYB
+  UNDER_REVIEW
+  RESTRICTED
+}
+
+enum ScreeningStatus {
+  CLEARED
+  FLAGGED_MANUAL_REVIEW
+  BLOCKED
+}
+
+enum PaymentStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  PROCESSING
+  PENDING_SETTLEMENT
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SettlementRail {
+  XRPL_BRIDGE
+  RLUSD_STABLECOIN
+  SWIFT_GPI
+  SEPA_INSTANT
+  FEDWIRE
+}
+
+enum ExecutionClassification {
+  SIMULATED_PAYMENT
+  SUBMITTED_BLOCKCHAIN_TX
+  VALIDATED_ON_CHAIN_TX
+  COMPLETED_EXTERNAL_FIAT_SETTLEMENT
+}
+
+enum InvoiceStatus {
+  OUTSTANDING
+  PAID
+  OVERDUE
+  PENDING_APPROVAL
+  PARTIALLY_PAID
+}
+
+enum AccountCustodyType {
+  EXTERNAL_BANK_LINKED
+  EXTERNAL_CUSTODY_VAULT
+  NON_CUSTODIAL_XRPL_SIGNER
+  INDICATIVE_VALUATION_ONLY
+}
+
+model User {
+  id                String              @id @default(cuid())
+  email             String              @unique
+  fullName          String
+  title             String
+  mfaEnabled        Boolean             @default(true)
+  mfaMethod         String              @default("TOTP_HARDWARE_KEY")
+  lastLoginAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  memberships       CompanyMembership[]
+  initiatedPayments Payment[]           @relation("PaymentInitiator")
+  approvals         PaymentApproval[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+
+  @@index([email])
+}
+
+model Company {
+  id                  String              @id @default(cuid())
+  legalName           String
+  tradingName         String
+  icaoCode            String?             @unique
+  iataCode            String?
+  registrationNumber  String              @unique
+  taxId               String
+  countryCode         String              // ISO 3166-1 alpha-2
+  headquartersCity    String
+  primaryHubAirport   String              // ICAO / IATA hub e.g. KJFK / JFK
+  category            AviationCategory
+  baseCurrency        String              @default("USD")
+  verificationStatus  VerificationStatus  @default(VERIFIED)
+  dualControlThreshold Decimal            @default(50000.000000) @db.Decimal(20, 6)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  memberships         CompanyMembership[]
+  accounts            Account[]
+  wallets             WalletReference[]
+  beneficiaries       Beneficiary[]
+  invoices            Invoice[]
+  payments            Payment[]
+  transactions        Transaction[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+
+  @@index([countryCode, category])
+}
+
+model CompanyMembership {
+  id          String     @id @default(cuid())
+  userId      String
+  companyId   String
+  role        UserRole
+  department  String     @default("Treasury & Fleet Settlement")
+  isActive    Boolean    @default(true)
+  joinedAt    DateTime   @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, companyId])
+  @@index([companyId, role])
+}
+
+model RolePermission {
+  id                  String   @id @default(cuid())
+  role                UserRole @unique
+  canCreatePayment    Boolean  @default(false)
+  canApprovePayment   Boolean  @default(false)
+  canExecuteXrpl      Boolean  @default(false)
+  canManageSuppliers  Boolean  @default(false)
+  canCreateInvoice    Boolean  @default(false)
+  canManageTreasury   Boolean  @default(false)
+  canManageUsers      Boolean  @default(false)
+  canExportAuditLogs  Boolean  @default(true)
+  maxSingleApprovalUsd Decimal @db.Decimal(20, 6)
+  updatedAt           DateTime @updatedAt
+}
+
+model Beneficiary {
+  id                  String              @id @default(cuid())
+  companyId           String
+  legalName           String
+  tradingName         String
+  countryCode         String
+  city                String
+  airportIcao         String
+  category            AviationCategory
+  defaultCurrency     String
+  ibanOrAccount       String
+  swiftBic            String
+  bankName            String
+  xrplDestinationAddr String?
+  xrplDestinationTag  Int?
+  supportedRails      SettlementRail[]
+  contactName         String
+  contactEmail        String
+  contactPhone        String
+  verificationStatus  VerificationStatus  @default(VERIFIED)
+  sanctionsStatus     ScreeningStatus     @default(CLEARED)
+  lastScreenedAt      DateTime            @default(now())
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  supplierProfile     SupplierProfile?
+  invoices            Invoice[]
+  payments            Payment[]
+  transactions        Transaction[]
+
+  @@index([companyId, category, countryCode])
+  @@index([verificationStatus])
+}
+
+model SupplierProfile {
+  id                      String      @id @default(cuid())
+  beneficiaryId           String      @unique
+  faaEasaCertNumber       String?     // For MROs & parts distributors
+  iataFuelCode            String?     // For jet fuel uplift suppliers
+  groundHandlingStations  String[]    // Airport codes served
+  paymentTermsDays        Int         @default(30)
+  preferredSettlementRail SettlementRail
+  lifetimeVolumeUsd       Decimal     @default(0.000000) @db.Decimal(20, 6)
+  averageSettlementSec    Int         @default(14)
+  reliabilityScore        Decimal     @default(99.40) @db.Decimal(5, 2)
+
+  beneficiary             Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id                String            @id @default(cuid())
+  companyId         String
+  beneficiaryId     String
+  invoiceNumber     String            @unique
+  direction         String            @default("PAYABLE") // PAYABLE or RECEIVABLE
+  currency          String
+  subtotalAmount    Decimal           @db.Decimal(20, 6)
+  taxAmount         Decimal           @db.Decimal(20, 6)
+  totalAmount       Decimal           @db.Decimal(20, 6)
+  issueDate         DateTime
+  dueDate           DateTime
+  status            InvoiceStatus     @default(OUTSTANDING)
+  aircraftTailNumber String?          // e.g., N789AS, A6-EOT, D-AIXA
+  flightNumber      String?
+  airportIcao       String?
+  documentFileName  String?
+  documentHashSha256 String?
+  notes             String?
+  matchedPaymentId  String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  beneficiary       Beneficiary       @relation(fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  lineItems         InvoiceLineItem[]
+  matchedPayment    Payment?          @relation("InvoicePaymentMatch", fields: [matchedPaymentId], references: [id])
+
+  @@index([companyId, status, dueDate])
+  @@index([beneficiaryId])
+}
+
+model InvoiceLineItem {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  description   String
+  skuOrPartNum  String?
+  quantity      Decimal  @db.Decimal(16, 4)
+  unit          String   // e.g., "USG", "MT", "HOURS", "EA", "CYCLES"
+  unitPrice     Decimal  @db.Decimal(20, 6)
+  lineTotal     Decimal  @db.Decimal(20, 6)
+
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model CurrencyExchangeQuote {
+  id                  String         @id @default(cuid())
+  quoteReference      String         @unique
+  providerName        String         // e.g., "XRPL DEX Pathfinding + Regulated LP", "LMAX Institutional FX"
+  sourceCurrency      String
+  destinationCurrency String
+  sourceAmount        Decimal        @db.Decimal(20, 6)
+  destinationAmount   Decimal        @db.Decimal(20, 6)
+  midMarketRate       Decimal        @db.Decimal(24, 8)
+  appliedRate         Decimal        @db.Decimal(24, 8)
+  bridgeAsset         String?        // "XRP", "RLUSD", or null for direct fiat
+  bridgeRateXrpSource Decimal?       @db.Decimal(24, 8)
+  bridgeRateXrpDest   Decimal?       @db.Decimal(24, 8)
+  networkFeeUsd       Decimal        @db.Decimal(20, 6)
+  platformFeeUsd      Decimal        @db.Decimal(20, 6)
+  corridorSpreadBps   Int
+  estimatedTimeSec    Int
+  expiresAt           DateTime
+  createdAt           DateTime       @default(now())
+
+  payments            Payment[]
+}
+
+model Payment {
+  id                      String                  @id @default(cuid())
+  paymentReference        String                  @unique
+  companyId               String
+  beneficiaryId           String
+  initiatorUserId         String
+  quoteId                 String?
+  sourceCurrency          String
+  sourceAmount            Decimal                 @db.Decimal(20, 6)
+  destinationCurrency     String
+  destinationAmount       Decimal                 @db.Decimal(20, 6)
+  exchangeRate            Decimal                 @db.Decimal(24, 8)
+  totalFeeSource          Decimal                 @db.Decimal(20, 6)
+  totalFeeUsd             Decimal                 @db.Decimal(20, 6)
+  settlementRail          SettlementRail
+  status                  PaymentStatus           @default(DRAFT)
+  executionClassification ExecutionClassification @default(SIMULATED_PAYMENT)
+  purposeCode             String                  // e.g., "JET_A1_UPLIFT", "MRO_C_CHECK", "AVIONICS_AOG_PARTS"
+  aircraftTailNumber      String?
+  airportIcao             String?
+  memoText                String?
+  requiresDualApproval    Boolean                 @default(false)
+  requiredApprovalsCount  Int                     @default(1)
+  submittedAt             DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  company                 Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  beneficiary             Beneficiary             @relation(fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  initiator               User                    @relation("PaymentInitiator", fields: [initiatorUserId], references: [id], onDelete: Restrict)
+  quote                   CurrencyExchangeQuote?  @relation(fields: [quoteId], references: [id])
+  matchedInvoice          Invoice?                @relation("InvoicePaymentMatch")
+  approvals               PaymentApproval[]
+  transaction             Transaction?
+
+  @@index([companyId, status, createdAt])
+  @@index([beneficiaryId])
+}
+
+model PaymentApproval {
+  id          String   @id @default(cuid())
+  paymentId   String
+  approverId  String
+  decision    String   // "APPROVED" or "REJECTED"
+  comment     String?
+  signature   String   // Cryptographic audit signature of approval
+  decidedAt   DateTime @default(now())
+
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  approver    User     @relation(fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId, approverId])
+}
+
+model Transaction {
+  id                      String                  @id @default(cuid())
+  transactionReference    String                  @unique
+  paymentId               String                  @unique
+  companyId               String
+  beneficiaryId           String
+  senderName              String
+  recipientName           String
+  recipientCountry        String
+  sourceCurrency          String
+  sourceAmount            Decimal                 @db.Decimal(20, 6)
+  destinationCurrency     String
+  destinationAmount       Decimal                 @db.Decimal(20, 6)
+  exchangeRate            Decimal                 @db.Decimal(24, 8)
+  feeAmountUsd            Decimal                 @db.Decimal(20, 6)
+  settlementRail          SettlementRail
+  status                  PaymentStatus
+  executionClassification ExecutionClassification
+  settlementDurationSec   Int?
+  externalBankRef         String?                 // SWIFT UETR or SEPA EndToEndId
+  xrplRecordId            String?                 @unique
+  createdAt               DateTime                @default(now())
+  settledAt               DateTime?
+
+  payment                 Payment                 @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  company                 Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  beneficiary             Beneficiary             @relation(fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  xrplRecord              XrplTransactionRecord?  @relation(fields: [xrplRecordId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([status, settlementRail])
+  @@index([recipientCountry, destinationCurrency])
+}
+
+model Account {
+  id                String             @id @default(cuid())
+  companyId         String
+  accountCode       String             @unique
+  accountName       String
+  currency          String
+  assetType         String             // "FIAT_BANK_ACCOUNT", "XRPL_NATIVE_ASSET", "REGULATED_STABLECOIN"
+  custodyType       AccountCustodyType
+  institutionName   String             // e.g., "JPMorgan Chase Aviation Treasury", "XRPL Institutional Multi-Sig Signer"
+  accountIdentifier String             // Masked IBAN or XRPL r-address
+  availableBalance  Decimal            @db.Decimal(20, 6)
+  reservedBalance   Decimal            @db.Decimal(20, 6)
+  usdEquivalent     Decimal            @db.Decimal(20, 6)
+  lastSyncedAt      DateTime           @default(now())
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, currency])
+}
+
+model WalletReference {
+  id                  String   @id @default(cuid())
+  companyId           String
+  label               String
+  network             String   @default("XRPL_TESTNET") // XRPL_TESTNET | XRPL_MAINNET
+  classicAddress      String   @unique
+  xAddress            String?
+  custodyArchitecture String   @default("NON_CUSTODIAL_KMS_HSM")
+  xrpBalanceDrops     String   @default("0")
+  xrpBalanceDecimal   Decimal  @db.Decimal(20, 6)
+  baseReserveXrp      Decimal  @default(1.000000) @db.Decimal(20, 6)
+  ownerReserveXrp     Decimal  @default(0.200000) @db.Decimal(20, 6)
+  sequenceNumber      Int      @default(1)
+  isSimulated         Boolean  @default(true)
+  lastLedgerIndex     Int?
+  updatedAt           DateTime @updatedAt
+
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  xrplTransactions    XrplTransactionRecord[]
+}
+
+model XrplTransactionRecord {
+  id                      String                  @id @default(cuid())
+  walletId                String
+  network                 String                  // "XRPL_TESTNET" | "XRPL_MAINNET" | "SIMULATION_SANDBOX"
+  txHash                  String?                 @unique // Null or explicitly prefixed in simulation mode; real 64-hex hash only when broadcast to XRPL
+  simulationTraceId       String?                 @unique // Populated when executed in isolated simulation mode
+  txType                  String                  @default("Payment")
+  sourceAddress           String
+  destinationAddress      String
+  destinationTag          Int?
+  xrpAmountDrops          String
+  xrpAmountDecimal        Decimal                 @db.Decimal(20, 6)
+  feeDrops                String                  @default("12")
+  ledgerIndex             Int?
+  engineResult            String                  // e.g., "tesSUCCESS"
+  validatedOnLedger       Boolean                 @default(false)
+  externalFiatOffRampStatus String                @default("COMPLETED_PARTNER_RAIL")
+  executionClassification ExecutionClassification
+  memoHex                 String?
+  rawTxJson               String
+  createdAt               DateTime                @default(now())
+
+  wallet                  WalletReference         @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  transaction             Transaction?
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  companyId     String
+  actorUserId   String
+  actorRole     UserRole
+  action        String   // e.g., "PAYMENT_CREATED", "PAYMENT_APPROVED", "XRPL_SETTLEMENT_EXECUTED", "ROLE_UPDATED"
+  entityType    String   // "PAYMENT", "INVOICE", "BENEFICIARY", "WALLET", "SETTINGS"
+  entityId      String
+  ipAddress     String
+  userAgent     String
+  summary       String
+  metadataJson  String
+  integrityHash String   // Immutable SHA-256 chain hash
+  createdAt     DateTime @default(now())
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  actor         User     @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String?
+  severity    String   // "INFO", "ACTION_REQUIRED", "SUCCESS", "WARNING"
+  title       String
+  message     String
+  linkTab     String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, isRead, createdAt])
+}

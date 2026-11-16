@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-surface: #f8fafc;
+  --navy-primary: #0a1929;
+  --navy-secondary: #102a43;
+  --accent-blue: #2563eb;
+}
+
+body {
+  background-color: var(--bg-surface);
+  color: #0f172a;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
