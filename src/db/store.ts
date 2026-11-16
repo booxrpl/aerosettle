@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import crypto from "crypto";
 import { DecimalMoney } from "@/lib/decimal";
 import {
@@ -42,6 +43,12 @@ export interface AeroSettleDatabaseState {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_FILE_PATH = path.join(DATA_DIR, "aerosettle-db.json");
+const TMP_DB_PATH = path.join(os.tmpdir(), "aerosettle-db.json");
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __aerosettle_db: AeroSettleDatabaseState | undefined;
+}
 
 function computeAuditHash(
   prevHash: string,
@@ -1303,29 +1310,61 @@ export function createInitialSeedDatabase(): AeroSettleDatabaseState {
 }
 
 export function loadDatabase(): AeroSettleDatabaseState {
+  if (globalThis.__aerosettle_db) {
+    return globalThis.__aerosettle_db;
+  }
+
+  // 1. Try reading project file (local development)
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const raw = fs.readFileSync(DB_FILE_PATH, "utf8");
+      const state = JSON.parse(raw) as AeroSettleDatabaseState;
+      globalThis.__aerosettle_db = state;
+      return state;
+    }
+  } catch {
+    // Continue to next fallback
+  }
+
+  // 2. Try reading tmp file (serverless environment like Vercel)
+  try {
+    if (fs.existsSync(TMP_DB_PATH)) {
+      const raw = fs.readFileSync(TMP_DB_PATH, "utf8");
+      const state = JSON.parse(raw) as AeroSettleDatabaseState;
+      globalThis.__aerosettle_db = state;
+      return state;
+    }
+  } catch {
+    // Continue
+  }
+
+  const initial = createInitialSeedDatabase();
+  globalThis.__aerosettle_db = initial;
+  saveDatabase(initial);
+  return initial;
+}
+
+export function saveDatabase(state: AeroSettleDatabaseState): void {
+  globalThis.__aerosettle_db = state;
+  const jsonStr = JSON.stringify(state, null, 2);
+
+  // 1. Try saving locally in data dir if writable
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    if (!fs.existsSync(DB_FILE_PATH)) {
-      const initial = createInitialSeedDatabase();
-      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(initial, null, 2), "utf8");
-      return initial;
-    }
-    const raw = fs.readFileSync(DB_FILE_PATH, "utf8");
-    return JSON.parse(raw) as AeroSettleDatabaseState;
+    fs.writeFileSync(DB_FILE_PATH, jsonStr, "utf8");
+    return;
   } catch {
-    return createInitialSeedDatabase();
+    // Falls back to writable /tmp on serverless environments like Vercel
   }
-}
 
-export function saveDatabase(state: AeroSettleDatabaseState): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  // 2. Write to writable temp directory on Vercel/Lambda
+  try {
+    fs.writeFileSync(TMP_DB_PATH, jsonStr, "utf8");
+  } catch {
+    // In-memory state remains updated
   }
-  const tmpFile = `${DB_FILE_PATH}.tmp`;
-  fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), "utf8");
-  fs.renameSync(tmpFile, DB_FILE_PATH);
 }
 
 export function appendAuditLog(
