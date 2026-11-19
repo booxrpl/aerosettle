@@ -132,7 +132,7 @@ export function AnalyticsAndReportingView({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-slate-900">
             Executive Treasury Analytics & Corridor Reporting
@@ -205,7 +205,7 @@ export function AnalyticsAndReportingView({
 
       {/* Monthly Volume Bar Visualization & Regional Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900">
             Monthly Settlement Volume by Rail (XRPL/RLUSD vs. Legacy Wire)
           </h3>
@@ -249,7 +249,7 @@ export function AnalyticsAndReportingView({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <h3 className="text-sm font-bold text-slate-900">
             Payment Volume by Global Aviation Region
           </h3>
@@ -285,7 +285,7 @@ export function AnalyticsAndReportingView({
       </div>
 
       {/* Supplier Volume & Reliability Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200">
           <h3 className="text-sm font-bold text-slate-900">
             Payment Volume & Settlement Velocity by Aviation Counterparty
@@ -399,7 +399,7 @@ export function SettingsAndCompanyView({
     <div className="space-y-6">
       {/* Company Profile & Dual-Control Governance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Building2 className="w-5 h-5 text-blue-600" />
             <div>
@@ -498,7 +498,7 @@ export function SettingsAndCompanyView({
         </div>
 
         {/* Team Management & Interactive RBAC Session Switcher */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-5 h-5 text-blue-600" />
             <div>
@@ -560,7 +560,7 @@ export function SettingsAndCompanyView({
       </div>
 
       {/* Role-Based Access Control (RBAC) Permission Matrix */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200">
           <h3 className="text-base font-bold text-slate-900">
             Enterprise Role-Based Access Control (RBAC) Permission Matrix
@@ -620,7 +620,7 @@ export function SettingsAndCompanyView({
       </div>
 
       {/* Immutable SHA-256 Hash-Chained Security Audit Trail */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">

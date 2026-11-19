@@ -34,6 +34,9 @@ const config: Config = {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
+      spacing: {
+        "68": "17rem",
+      },
     },
   },
   plugins: [],

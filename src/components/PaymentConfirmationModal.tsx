@@ -102,7 +102,7 @@ export function PaymentConfirmationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-3xl w-full overflow-hidden my-8">
         {/* Top Navy Header */}
         <div className="bg-[#0a1929] text-white px-6 py-5 flex items-center justify-between">
@@ -484,7 +484,7 @@ export function OnboardingAndAuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
         <div className="bg-[#0a1929] text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">

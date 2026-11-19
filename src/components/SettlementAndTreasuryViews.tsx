@@ -140,7 +140,7 @@ export function InternationalSettlementView({
   return (
     <div className="space-y-6">
       {/* Header & XRPL Network Mode Selector */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export function InternationalSettlementView({
 
       {/* Supported vs. Unsupported Aviation Corridors Table & Interactive Simulator */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <h3 className="text-base font-bold text-slate-900">
             Configured International Aviation Settlement Corridors
           </h3>
@@ -397,7 +397,7 @@ export function InternationalSettlementView({
 
         {/* Right Column: Corridor Cost & Speed Calculator + On-Chain Hash Verifier */}
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900">
               Corridor Quote & Rail Cost Simulator
             </h3>
@@ -532,7 +532,7 @@ export function InternationalSettlementView({
           </div>
 
           {/* XRPL On-Chain Transaction Hash Verification Tool */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-blue-600" />
               XRPL Ledger Transaction Verifier (`tx` RPC)
@@ -660,7 +660,7 @@ export function TreasuryOverviewView({
       </div>
 
       {/* Multi-Currency Accounts Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900">
@@ -734,7 +734,7 @@ export function TreasuryOverviewView({
       </div>
 
       {/* XRPL Non-Custodial Wallet References & Reserve Breakdown */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
